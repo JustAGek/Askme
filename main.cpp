@@ -67,6 +67,7 @@ struct User_manager
         }
     }
     void Log_out()
+
     {
         current_user_ID = -1;
     }
@@ -135,7 +136,8 @@ struct User_manager
 
     }
     void load()
-    {
+{
+
         string s;
         ifstream input("users.txt");
         while(getline(input,s)&& s!="")
@@ -224,11 +226,11 @@ struct Question_manager
             size++;
 
         }
-
     }
 
     void load()
     {
+        Questions.clear();
         ifstream input("questions.txt");
         while(getline(input,s)&& s!="")
         {
@@ -272,31 +274,30 @@ struct Question_manager
         ofstream output("questions.txt");
         save_into(Questions,output);
     }
-    int answer_question(vector<Question> &root,int user_ID,int Qid, string ans)
+    int answer_question(vector<Question>& root, int user_ID, int Qid, string ans)
+{
+    for(auto &x: root)
     {
-        for(auto &x: root)
+        if(x.Question_ID == Qid)
         {
-            if(x.Question_ID == Qid)
+            if(x.ID_to == user_ID)
             {
-                if(x.ID_to == user_ID)
-                {
-                    x.Answer = ans;
-                    x.AY = 1;
-                    return 1;
-                }
-                else if(x.ID_to != user_ID)
-                {
-                    return 0;
-                }
+                x.Answer = ans;
+                x.AY = 1;
+                return 1;
             }
-            if (x.children.empty() != true)
+            else
             {
-                if (answer_question(x.children, user_ID, Qid,ans))
-                    return 1;
+                return 0;
             }
         }
-        return -1;
+        int res = answer_question(x.children, user_ID, Qid, ans);
+        if(res != -1)
+            return res;
     }
+    return -1;
+}
+
     void questions(vector<Question> &root,int id, int ft)
     {
         if (ft == 1)
@@ -305,8 +306,9 @@ struct Question_manager
             {
                 if(x.ID_to == id)
                 {
-                    cout << "Question ID(" << x.Question_ID << ") ";
-                    if(x.QA == 0) cout << "From User(" << x.ID_from << "):";
+                    cout << "Question ID(" << x.Question_ID << "): ";
+                    if(x.QA == 0) cout << "From User(" << x.ID_from << "):" << endl;
+                    else cout << endl;
                     cout << "\t Q: " << x.Question << endl;
                     if (x.AY == 0) cout << "\t A: Not Answered Yet!" << endl;
                     else cout << "\t A: " << x.Answer << endl;
@@ -320,8 +322,8 @@ struct Question_manager
             {
                 if(x.ID_from == id)
                 {
-                    cout << "Question ID(" << x.Question_ID << ") ";
-                    cout << "To User(" << x.ID_to << "):";
+                    cout << "Question ID(" << x.Question_ID << "): ";
+                    cout << "To User(" << x.ID_to << "):" << endl;
                     cout << "\t Q: " << x.Question << endl;
                     if (x.AY == 0) cout << "\t A: Not Answered Yet!" << endl;
                     else cout << "\t A: " << x.Answer << endl;
@@ -366,7 +368,7 @@ struct Question_manager
         {
             if (it->Question_ID == id)
             {
-                if(it->ID_from == user_Id || it->ID_from == user_Id)
+                if(it->ID_from == user_Id || it->ID_to == user_Id)
                 {
                     it = root.erase(it);
                     return 1;
@@ -385,8 +387,9 @@ struct Question_manager
         }
         return 0;
     }
-    int ask_question(vector<Question> &root, int stat, int from,int to,string t,bool QA, int level = 0)
+    int ask_question(vector<Question>& root, int stat, int from, int to, const string &t, bool QA, int level = 0)
     {
+
         if (stat == -1)
         {
             Question temp;
@@ -396,37 +399,48 @@ struct Question_manager
             temp.level = 0;
             temp.Question = t;
             temp.Question_ID = generateUniqueID();
-            Questions.push_back(temp);
+            temp.AY = 0;
+            root.push_back(temp);
             return 1;
         }
+
         else
         {
-            for (auto it = root.begin(); it != root.end(); )
+
+            for (auto &q : root)
             {
-                if(it->ID_to != to && it->Question_ID == stat)
-                    return -1;
-                if(it->ID_to == to && it->Question_ID == stat)
+
+                if (q.Question_ID == stat)
                 {
-                    Question temp;
-                    temp.ID_from = from;
-                    temp.ID_to = to;
-                    temp.QA = QA;
-                    temp.level = 0;
-                    temp.Question = t;
-                    temp.Question_ID = generateUniqueID();
-                    Questions.push_back(temp);
-                    return 1;
-                }
-                if (it->children.empty() != true)
-                {
-                    if (ask_question(it->children, stat, from,to,t,QA, level + 1))
+
+                    if (q.ID_to == to)
+                    {
+                        Question temp;
+                        temp.ID_from = from;
+                        temp.ID_to = to;
+                        temp.QA = QA;
+                        temp.level = q.level + 1;
+                        temp.Question = t;
+                        temp.Question_ID = generateUniqueID();
+                        temp.AY = 0;
+                        q.children.push_back(temp);
                         return 1;
+                    }
+                    else
+                    {
+
+                        return -1;
+                    }
                 }
-                it++;
+
+                int result = ask_question(q.children, stat, from, to, t, QA, q.level + 1);
+                if (result != 0)
+                    return result;
             }
         }
         return 0;
     }
+
     void Questions_To_Me(int id)
     {
         questions(Questions,id,1);
@@ -474,7 +488,8 @@ struct askme
                 cout << "Enter the question ID you want to answer: ";
                 cin >> QID;
                 cout << "What's your answer?: ";
-                cin >> ans;
+                cin.ignore(1e9, '\n');
+                getline(cin,ans);
                 int state = question_manager.answer_question(question_manager.Questions,user_manager.current_user_ID,QID,ans);
                 if(state == 1) cout << "Answer successfully" << endl;
                 else if (state == 0) cout << "This Question isn't asked to You!" << endl;
@@ -485,7 +500,8 @@ struct askme
                 int QID;
                 cout << "Enter the question ID you want to delete: ";
                 cin >> QID;
-                int state = question_manager.delete_question(question_manager.Questions,user_manager.current_user_ID,QID);
+                int state = question_manager.delete_question(question_manager.Questions, QID, user_manager.current_user_ID);
+
                 if(state == 1)
                     cout << "Question removed successfully" << endl;
                 else if (state == -1)
@@ -508,7 +524,11 @@ struct askme
                         int stats;
                         string que;
                         if(user_manager.users[user_id].QA == 0)
+                        {
                             cout << "Note: Anonymous questions aren't allowed for this user" << endl;
+                            QA = 0;
+
+                        }
                         else
                         {
                             cout << "Type one to ask anonymously and 0 for non-anonymously: ";
@@ -517,7 +537,8 @@ struct askme
                         cout << "For thread question: Enter Question ID or -1 for new question: ";
                         cin >> stats;
                         cout << "What do you want to ask?: ";
-                        cin >> que;
+                        cin.ignore(1e9, '\n');
+                        getline(cin,que);
                         int stat = question_manager.ask_question(question_manager.Questions,stats,user_manager.current_user_ID,user_id,que,QA,0);
                         if(stat == 1)
                         {
@@ -530,21 +551,21 @@ struct askme
                 else cout << "This user don't exist!" << endl;
 
             }
-        else if (state == 6)
-            user_manager.list_users();
-        else if (state == 7)
-            question_manager.Feed(user_manager.current_user_ID);
-        else if (state == 8)
-        {
-            user_manager.current_user_ID = -1;
-            break;
+            else if (state == 6)
+                user_manager.list_users();
+            else if (state == 7)
+                question_manager.Feed(user_manager.current_user_ID);
+            else if (state == 8)
+            {
+                user_manager.current_user_ID = -1;
+                break;
+            }
+            else
+            {
+                cout << "ERROR: invalid number....Try again" << endl;
+            }
+            question_manager.save();
         }
-        else
-        {
-            cout << "ERROR: invalid number....Try again" << endl;
-        }
-        question_manager.save();
-    }
     }
     void start_menu()
     {
